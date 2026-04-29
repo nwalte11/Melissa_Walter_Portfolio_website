@@ -733,26 +733,35 @@ function setDataStatus(message, isError = false) {
 }
 
 async function exportAllData() {
-  const exportData = {
-    version: 1,
-    exported: new Date().toISOString(),
-    headshot: safeLocalStorageGet(HEADSHOT_KEY),
-    portfolioImages: readPortfolioFromLocalStorage(),
-    resume: safeLocalStorageGet(RESUME_PDF_KEY),
-    editableContent: getSavedContent()
-  };
+  try {
+    setDataStatus("Exporting...");
+    
+    const exportData = {
+      version: 1,
+      exported: new Date().toISOString(),
+      headshot: safeLocalStorageGet(HEADSHOT_KEY),
+      portfolioImages: readPortfolioFromLocalStorage(),
+      resume: safeLocalStorageGet(RESUME_PDF_KEY),
+      editableContent: getSavedContent()
+    };
 
-  const jsonStr = JSON.stringify(exportData, null, 2);
-  const blob = new Blob([jsonStr], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `portfolio-data-${new Date().toISOString().split('T')[0]}.json`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-  setDataStatus("Data exported successfully!");
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `portfolio-data-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      link.remove();
+      URL.revokeObjectURL(url);
+    }, 100);
+    setDataStatus("Data exported successfully!");
+  } catch (error) {
+    setDataStatus(`Export failed: ${error.message}`, true);
+    console.error("Export error:", error);
+  }
 }
 
 async function importAllData(file) {

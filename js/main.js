@@ -12,12 +12,96 @@ if (yearElement) {
 const headshotImg = document.getElementById("headshot-img");
 const headshotUpload = document.getElementById("headshot-upload");
 const HEADSHOT_KEY = "teacherPortfolioHeadshot";
+const ASSET_DB_NAME = "teacherPortfolioDB";
+const ASSET_STORE = "appAssets";
+const PORTFOLIO_STORE = "portfolioImages";
+
+function safeLocalStorageGet(key, fallback = null) {
+  try {
+    const value = localStorage.getItem(key);
+    return value === null ? fallback : value;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeLocalStorageSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function openAssetDb() {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") {
+      reject(new Error("IndexedDB unavailable"));
+      return;
+    }
+
+    const request = indexedDB.open(ASSET_DB_NAME, 2);
+
+    request.addEventListener("upgradeneeded", () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PORTFOLIO_STORE)) {
+        db.createObjectStore(PORTFOLIO_STORE, { keyPath: "id", autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains(ASSET_STORE)) {
+        db.createObjectStore(ASSET_STORE, { keyPath: "key" });
+      }
+    });
+
+    request.addEventListener("success", () => resolve(request.result));
+    request.addEventListener("error", () => reject(request.error));
+  });
+}
+
+function assetDbGet(db, key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ASSET_STORE, "readonly");
+    const store = tx.objectStore(ASSET_STORE);
+    const request = store.get(key);
+
+    request.addEventListener("success", () => {
+      resolve(request.result && typeof request.result.value === "string" ? request.result.value : null);
+    });
+    request.addEventListener("error", () => reject(request.error));
+  });
+}
+
+function assetDbSet(db, key, value) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ASSET_STORE, "readwrite");
+    const store = tx.objectStore(ASSET_STORE);
+    const request = store.put({ key, value });
+
+    request.addEventListener("success", () => resolve());
+    request.addEventListener("error", () => reject(request.error));
+  });
+}
 
 // Restore saved headshot
-const savedHeadshot = localStorage.getItem(HEADSHOT_KEY);
-if (savedHeadshot && headshotImg) {
-  headshotImg.src = savedHeadshot;
-}
+(async () => {
+  if (!headshotImg) return;
+
+  try {
+    const db = await openAssetDb();
+    const savedHeadshot = await assetDbGet(db, HEADSHOT_KEY);
+    if (savedHeadshot) {
+      headshotImg.src = savedHeadshot;
+      return;
+    }
+  } catch {
+    // Fall through to localStorage fallback.
+  }
+
+  const savedHeadshot = safeLocalStorageGet(HEADSHOT_KEY);
+  if (savedHeadshot) {
+    headshotImg.src = savedHeadshot;
+  }
+})();
 
 if (headshotUpload && headshotImg) {
   headshotUpload.addEventListener("change", () => {
@@ -25,12 +109,13 @@ if (headshotUpload && headshotImg) {
     if (!file || !file.type.startsWith("image/")) return;
 
     const reader = new FileReader();
-    reader.addEventListener("load", () => {
+    reader.addEventListener("load", async () => {
       headshotImg.src = reader.result;
       try {
-        localStorage.setItem(HEADSHOT_KEY, reader.result);
+        const db = await openAssetDb();
+        await assetDbSet(db, HEADSHOT_KEY, reader.result);
       } catch {
-        // Storage full — photo shows this session but won't persist
+        safeLocalStorageSet(HEADSHOT_KEY, reader.result);
       }
     });
     reader.readAsDataURL(file);
@@ -80,8 +165,6 @@ const portfolioImageGrid = document.getElementById("portfolio-image-grid");
 const portfolioPrevButton = document.getElementById("portfolio-prev");
 const portfolioNextButton = document.getElementById("portfolio-next");
 const PORTFOLIO_IMAGES_KEY = "teacherPortfolioImages";
-const PORTFOLIO_DB_NAME = "teacherPortfolioDB";
-const PORTFOLIO_STORE = "portfolioImages";
 const MAX_PORTFOLIO_IMAGES = 15;
 const CAROUSEL_INTERVAL_MS = 5000;
 let currentPortfolioIndex = 0;
@@ -97,19 +180,42 @@ function isAcceptedPortfolioFile(file) {
 }
 
 function openPortfolioDb() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(PORTFOLIO_DB_NAME, 1);
+  return openAssetDb();
+}
 
-    request.addEventListener("upgradeneeded", () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(PORTFOLIO_STORE)) {
-        db.createObjectStore(PORTFOLIO_STORE, { keyPath: "id", autoIncrement: true });
-      }
-    });
+function readPortfolioFromLocalStorage() {
+  try {
+    const raw = JSON.parse(safeLocalStorageGet(PORTFOLIO_IMAGES_KEY, "[]") || "[]");
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((item, index) => {
+        if (typeof item === "string") {
+          return { id: index + 1, src: item, type: "image", name: `Artifact ${index + 1}`, note: "" };
+        }
+        return {
+          id: item.id || index + 1,
+          src: item.src,
+          type: item.type || (item.src && item.src.startsWith("data:application/pdf") ? "pdf" : "image"),
+          name: item.name || `Artifact ${index + 1}`,
+          note: item.note || ""
+        };
+      })
+      .filter((item) => typeof item.src === "string" && item.src.length > 0);
+  } catch {
+    return [];
+  }
+}
 
-    request.addEventListener("success", () => resolve(request.result));
-    request.addEventListener("error", () => reject(request.error));
-  });
+function writePortfolioToLocalStorage(items) {
+  const normalized = items.map((item, index) => ({
+    id: index + 1,
+    src: item.src,
+    type: item.type,
+    name: item.name || `Artifact ${index + 1}`,
+    note: item.note || ""
+  }));
+  safeLocalStorageSet(PORTFOLIO_IMAGES_KEY, JSON.stringify(normalized));
+  return normalized;
 }
 
 function readAllPortfolioImages(db) {
@@ -258,8 +364,17 @@ function renderPortfolioImages(images, db) {
     removeButton.textContent = "x";
 
     removeButton.addEventListener("click", async () => {
-      await removePortfolioImage(db, item.id);
-      const latest = await readAllPortfolioImages(db);
+      if (db) {
+        await removePortfolioImage(db, item.id);
+      } else {
+        const current = readPortfolioFromLocalStorage();
+        writePortfolioToLocalStorage(current.filter((entry) => entry.id !== item.id));
+      }
+
+      const latest = db ? await readAllPortfolioImages(db) : readPortfolioFromLocalStorage();
+      if (db) {
+        writePortfolioToLocalStorage(latest);
+      }
       renderPortfolioImages(latest, db);
     });
 
@@ -278,7 +393,7 @@ function stopPortfolioCarousel() {
 function startPortfolioCarousel(db) {
   stopPortfolioCarousel();
   portfolioCarouselTimer = setInterval(async () => {
-    const latest = await readAllPortfolioImages(db);
+    const latest = db ? await readAllPortfolioImages(db) : readPortfolioFromLocalStorage();
     if (latest.length <= 1) return;
     currentPortfolioIndex = (currentPortfolioIndex + 1) % latest.length;
     renderPortfolioImages(latest, db);
@@ -291,6 +406,7 @@ if (portfolioUploadInput && portfolioImageGrid) {
       const db = await openPortfolioDb();
       await migrateLegacyPortfolioImages(db);
       const savedImages = await readAllPortfolioImages(db);
+      writePortfolioToLocalStorage(savedImages);
       renderPortfolioImages(savedImages, db);
       startPortfolioCarousel(db);
 
@@ -344,6 +460,7 @@ if (portfolioUploadInput && portfolioImageGrid) {
         }
 
         const latest = await readAllPortfolioImages(db);
+        writePortfolioToLocalStorage(latest);
         if (latest.length) {
           currentPortfolioIndex = latest.length - 1;
         }
@@ -352,8 +469,71 @@ if (portfolioUploadInput && portfolioImageGrid) {
         portfolioUploadInput.value = "";
       });
     } catch {
-      // If IndexedDB is unavailable, keep the UI stable.
-      renderPortfolioImages([], null);
+      const savedImages = readPortfolioFromLocalStorage();
+      renderPortfolioImages(savedImages, null);
+      startPortfolioCarousel(null);
+
+      if (portfolioPrevButton) {
+        portfolioPrevButton.addEventListener("click", () => {
+          const latest = readPortfolioFromLocalStorage();
+          if (!latest.length) return;
+          currentPortfolioIndex = (currentPortfolioIndex - 1 + latest.length) % latest.length;
+          renderPortfolioImages(latest, null);
+          startPortfolioCarousel(null);
+        });
+      }
+
+      if (portfolioNextButton) {
+        portfolioNextButton.addEventListener("click", () => {
+          const latest = readPortfolioFromLocalStorage();
+          if (!latest.length) return;
+          currentPortfolioIndex = (currentPortfolioIndex + 1) % latest.length;
+          renderPortfolioImages(latest, null);
+          startPortfolioCarousel(null);
+        });
+      }
+
+      portfolioUploadInput.addEventListener("change", async () => {
+        const files = Array.from(portfolioUploadInput.files || []).filter((file) => isAcceptedPortfolioFile(file));
+        if (!files.length) {
+          portfolioUploadInput.value = "";
+          return;
+        }
+
+        const current = readPortfolioFromLocalStorage();
+        const remainingSlots = MAX_PORTFOLIO_IMAGES - current.length;
+
+        if (remainingSlots <= 0) {
+          renderPortfolioImages(current, null);
+          portfolioUploadInput.value = "";
+          return;
+        }
+
+        const filesToAdd = files.slice(0, remainingSlots);
+        let latest = current;
+
+        try {
+          for (const file of filesToAdd) {
+            const src = await readFileAsDataUrl(file);
+            const type = isPdfFile(file) ? "pdf" : "image";
+            latest = [
+              ...latest,
+              { id: Date.now() + Math.random(), src, type, name: file.name, note: "" }
+            ];
+          }
+        } catch {
+          portfolioUploadInput.value = "";
+          return;
+        }
+
+        latest = writePortfolioToLocalStorage(latest);
+        if (latest.length) {
+          currentPortfolioIndex = latest.length - 1;
+        }
+        renderPortfolioImages(latest, null);
+        startPortfolioCarousel(null);
+        portfolioUploadInput.value = "";
+      });
     }
   })();
 }
@@ -367,8 +547,10 @@ const resumeUploadInput = document.getElementById("resume-upload");
 const resumeStatus = document.getElementById("resume-status");
 const RESUME_PDF_KEY = "teacherResumePdf";
 const DEFAULT_RESUME_URL = "assets/resume.pdf";
+let cachedResumeSource = null;
 
 function setResumeSource(src, message) {
+  cachedResumeSource = src;
   if (resumePreview) {
     resumePreview.src = src;
   }
@@ -385,7 +567,18 @@ function setResumeSource(src, message) {
 async function initializeResumePreview() {
   if (!resumePreview || !resumeDownloadLink) return;
 
-  const savedResume = localStorage.getItem(RESUME_PDF_KEY);
+  try {
+    const db = await openAssetDb();
+    const savedResume = await assetDbGet(db, RESUME_PDF_KEY);
+    if (savedResume) {
+      setResumeSource(savedResume, "Using uploaded resume PDF.");
+      return;
+    }
+  } catch {
+    // Fall through to localStorage and default file.
+  }
+
+  const savedResume = safeLocalStorageGet(RESUME_PDF_KEY);
   if (savedResume) {
     setResumeSource(savedResume, "Using uploaded resume PDF.");
     return;
@@ -428,7 +621,12 @@ if (resumeUploadInput) {
 
     try {
       const src = await readFileAsDataUrl(file);
-      localStorage.setItem(RESUME_PDF_KEY, src);
+      try {
+        const db = await openAssetDb();
+        await assetDbSet(db, RESUME_PDF_KEY, src);
+      } catch {
+        safeLocalStorageSet(RESUME_PDF_KEY, src);
+      }
       setResumeSource(src, "Resume uploaded. Preview and download are ready.");
     } catch {
       if (resumeStatus) {
@@ -452,7 +650,9 @@ const homeResumeYes = document.getElementById("resume-download-yes");
 const homeResumeNo = document.getElementById("resume-download-no");
 
 function getResumeSourceForHome() {
-  const savedResume = localStorage.getItem(RESUME_PDF_KEY);
+  if (cachedResumeSource) return cachedResumeSource;
+
+  const savedResume = safeLocalStorageGet(RESUME_PDF_KEY);
   if (savedResume) return savedResume;
   return DEFAULT_RESUME_URL;
 }

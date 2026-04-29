@@ -47,5 +47,7 @@ This project is ready for static deployment on Vercel.
 ## Customization
 
 - Update profile content in `index.html`.
+- Replace `assets/profile-photo.svg` with your real headshot (or keep the same filename and extension) so production always serves a committed image.
+- Keep headshot asset filenames lowercase and update `index.html` if you change the path, to avoid Linux case-sensitivity issues in deployment.
 - Change the visual theme in `css/styles.css` under `:root` variables.
 - Replace contact links in the Contact section.

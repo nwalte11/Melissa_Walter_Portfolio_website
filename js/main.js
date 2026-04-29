@@ -274,22 +274,21 @@ function readFileAsDataUrl(file) {
 }
 
 async function migrateLegacyPortfolioImages(db) {
-  let legacyImages;
-  try {
-    legacyImages = JSON.parse(localStorage.getItem(PORTFOLIO_IMAGES_KEY) || "[]");
-  } catch {
-    legacyImages = [];
+  const existing = await readAllPortfolioImages(db);
+  if (existing.length) return;
+
+  const legacyImages = readPortfolioFromLocalStorage();
+  if (!legacyImages.length) return;
+
+  for (const item of legacyImages.slice(0, MAX_PORTFOLIO_IMAGES)) {
+    if (typeof item.src !== "string" || !item.src) continue;
+    await addPortfolioImage(db, {
+      src: item.src,
+      type: item.type || (item.src.startsWith("data:application/pdf") ? "pdf" : "image"),
+      name: item.name || "Uploaded artifact",
+      note: item.note || ""
+    });
   }
-
-  if (!Array.isArray(legacyImages) || !legacyImages.length) return;
-
-  for (const src of legacyImages.slice(0, MAX_PORTFOLIO_IMAGES)) {
-    if (typeof src === "string" && src.startsWith("data:image")) {
-      await addPortfolioImage(db, { src, type: "image", name: "Uploaded image" });
-    }
-  }
-
-  localStorage.removeItem(PORTFOLIO_IMAGES_KEY);
 }
 
 function renderPortfolioImages(images, db) {
@@ -717,4 +716,136 @@ document.addEventListener("keydown", (event) => {
     closeHomeResumeModal();
   }
 });
+
+// =====================
+// Data Export/Import
+// =====================
+const exportDataBtn = document.getElementById("export-data-btn");
+const importDataBtn = document.getElementById("import-data-btn");
+const importDataInput = document.getElementById("import-data-input");
+const dataStatus = document.getElementById("data-status");
+
+function setDataStatus(message, isError = false) {
+  if (dataStatus) {
+    dataStatus.textContent = message;
+    dataStatus.style.color = isError ? "#d32f2f" : "#4caf50";
+  }
+}
+
+async function exportAllData() {
+  const exportData = {
+    version: 1,
+    exported: new Date().toISOString(),
+    headshot: safeLocalStorageGet(HEADSHOT_KEY),
+    portfolioImages: readPortfolioFromLocalStorage(),
+    resume: safeLocalStorageGet(RESUME_PDF_KEY),
+    editableContent: getSavedContent()
+  };
+
+  const jsonStr = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([jsonStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `portfolio-data-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  setDataStatus("Data exported successfully!");
+}
+
+async function importAllData(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", async () => {
+      try {
+        const data = JSON.parse(reader.result);
+
+        // Import headshot
+        if (data.headshot) {
+          try {
+            const db = await openAssetDb();
+            await assetDbSet(db, HEADSHOT_KEY, data.headshot);
+          } catch {
+            safeLocalStorageSet(HEADSHOT_KEY, data.headshot);
+          }
+          if (headshotImg) {
+            headshotImg.src = data.headshot;
+          }
+        }
+
+        // Import portfolio images
+        if (Array.isArray(data.portfolioImages) && data.portfolioImages.length) {
+          writePortfolioToLocalStorage(data.portfolioImages);
+          try {
+            const db = await openPortfolioDb();
+            const latest = await readAllPortfolioImages(db);
+            renderPortfolioImages(latest, db);
+            startPortfolioCarousel(db);
+          } catch {
+            const latest = readPortfolioFromLocalStorage();
+            renderPortfolioImages(latest, null);
+            startPortfolioCarousel(null);
+          }
+        }
+
+        // Import resume
+        if (data.resume) {
+          try {
+            const db = await openAssetDb();
+            await assetDbSet(db, RESUME_PDF_KEY, data.resume);
+          } catch {
+            safeLocalStorageSet(RESUME_PDF_KEY, data.resume);
+          }
+          cachedResumeSource = data.resume;
+          setResumeSource(data.resume, "Resume imported.");
+        }
+
+        // Import editable content
+        if (data.editableContent && typeof data.editableContent === "object") {
+          saveContent(data.editableContent);
+          editableAreas.forEach((area) => {
+            const key = area.dataset.saveKey;
+            if (key && data.editableContent[key]) {
+              area.innerHTML = data.editableContent[key];
+            }
+          });
+        }
+
+        setDataStatus("Data imported successfully! Refresh the page to see all changes.");
+        resolve(true);
+      } catch (error) {
+        setDataStatus(`Import failed: ${error.message}`, true);
+        resolve(false);
+      }
+    });
+    reader.addEventListener("error", () => {
+      setDataStatus("Failed to read file.", true);
+      resolve(false);
+    });
+    reader.readAsText(file);
+  });
+}
+
+if (exportDataBtn) {
+  exportDataBtn.addEventListener("click", exportAllData);
+}
+
+if (importDataBtn) {
+  importDataBtn.addEventListener("click", () => {
+    importDataInput.click();
+  });
+}
+
+if (importDataInput) {
+  importDataInput.addEventListener("change", async () => {
+    const file = importDataInput.files && importDataInput.files[0];
+    if (file) {
+      setDataStatus("Importing...");
+      await importAllData(file);
+    }
+    importDataInput.value = "";
+  });
+}
 

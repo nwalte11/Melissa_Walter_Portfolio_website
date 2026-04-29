@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 120" role="img" aria-labelledby="title desc">
+  <title id="title">Puzzle piece banner</title>
+  <desc id="desc">Colorful puzzle-inspired decorative banner.</desc>
+  <defs>
+    <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="1.5" fill="rgba(255,255,255,0.2)" />
+    </pattern>
+  </defs>
+  <rect width="1400" height="120" fill="#103b4d" />
+  <g transform="translate(20 16)">
+    <g fill="#f29f05">
+      <rect x="0" y="0" width="160" height="88" rx="16" />
+      <circle cx="80" cy="0" r="13" />
+      <circle cx="160" cy="44" r="13" />
+      <circle cx="80" cy="88" r="13" />
+    </g>
+    <g transform="translate(170 0)" fill="#dc4e41">
+      <rect x="0" y="0" width="160" height="88" rx="16" />
+      <circle cx="0" cy="44" r="13" />
+      <circle cx="80" cy="0" r="13" />
+      <circle cx="160" cy="44" r="13" />
+    </g>
+    <g transform="translate(340 0)" fill="#2a9d8f">
+      <rect x="0" y="0" width="160" height="88" rx="16" />
+      <circle cx="0" cy="44" r="13" />
+      <circle cx="80" cy="88" r="13" />
+      <circle cx="160" cy="44" r="13" />
+    </g>
+    <g transform="translate(510 0)" fill="#457b9d">
+      <rect x="0" y="0" width="160" height="88" rx="16" />
+      <circle cx="0" cy="44" r="13" />
+      <circle cx="80" cy="0" r="13" />
+      <circle cx="160" cy="44" r="13" />
+    </g>
+    <g transform="translate(680 0)" fill="#f4a261">
+      <rect x="0" y="0" width="160" height="88" rx="16" />
+      <circle cx="0" cy="44" r="13" />
+      <circle cx="80" cy="88" r="13" />
+      <circle cx="160" cy="44" r="13" />
+    </g>
+    <g transform="translate(850 0)" fill="#8d5fd3">
+      <rect x="0" y="0" width="160" height="88" rx="16" />
+      <circle cx="0" cy="44" r="13" />
+      <circle cx="80" cy="0" r="13" />
+      <circle cx="160" cy="44" r="13" />
+    </g>
+    <g transform="translate(1020 0)" fill="#e76f51">
+      <rect x="0" y="0" width="160" height="88" rx="16" />
+      <circle cx="0" cy="44" r="13" />
+      <circle cx="80" cy="88" r="13" />
+    </g>
+  </g>
+  <rect width="1400" height="120" fill="url(#dots)" />
+</svg>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Teacher portfolio website for Melissa Walter."
+    />
+    <title>Melissa Walter | Teacher Portfolio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Manrope:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <img
+        class="puzzle-strip"
+        src="assets/puzzle-banner.svg"
+        alt="Colorful puzzle piece banner"
+      />
+      <div class="header-panel">
+        <label class="headshot-wrap" for="headshot-upload" title="Click to upload your headshot">
+          <img
+            class="headshot"
+            id="headshot-img"
+            src="assets/headshot-placeholder.svg"
+            alt="Headshot of Melissa Walter"
+          />
+          <span class="headshot-overlay">Upload Photo</span>
+          <input type="file" id="headshot-upload" accept="image/*" hidden />
+        </label>
+        <div class="header-copy">
+          <p class="eyebrow">Teacher Portfolio</p>
+          <h1>Melissa Walter</h1>
+          <p>
+            Inclusive instruction, clear communication, and measurable classroom
+            growth.
+          </p>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="section hero-section" aria-label="Call to action">
+        <h2 class="hero-title">Explore My Teaching Impact</h2>
+        <p class="hero-subtitle">View my portfolio of classroom strategies, student outcomes, and educational resources.</p>
+        <div class="cta-buttons">
+          <a href="resume.html" class="btn btn-primary">Download Resume</a>
+        </div>
+        <p class="contact-link"><a href="contact.html">Contact</a></p>
+      </section>
+
+      <section class="section nav-section" aria-label="Portfolio navigation">
+        <p class="eyebrow">Explore</p>
+        <h2>Where would you like to go?</h2>
+        <nav class="nav-buttons" aria-label="Portfolio pages">
+          <a class="nav-btn" href="portfolio.html">
+            <span class="nav-btn-icon">📄</span>
+            <span class="nav-btn-label">Portfolio</span>
+            <span class="nav-btn-desc">Projects, goals, and teaching highlights</span>
+          </a>
+          <a class="nav-btn" href="#" id="resume-preview-trigger" role="button" aria-controls="resume-preview-modal" aria-haspopup="dialog">
+            <span class="nav-btn-icon">📋</span>
+            <span class="nav-btn-label">Resume</span>
+            <span class="nav-btn-desc">Preview and download resume</span>
+          </a>
+          <a class="nav-btn" href="statistics.html">
+            <span class="nav-btn-icon">📊</span>
+            <span class="nav-btn-label">Statistics</span>
+            <span class="nav-btn-desc">Student growth metrics and achievement data</span>
+          </a>
+        </nav>
+      </section>
+    </main>
+
+    <div id="resume-preview-modal" class="resume-modal" hidden>
+      <div class="resume-modal-backdrop" data-close-resume-modal="true"></div>
+      <section class="resume-modal-content" role="dialog" aria-modal="true" aria-labelledby="resume-modal-title">
+        <h2 id="resume-modal-title">Resume Preview</h2>
+        <iframe id="home-resume-preview" class="resume-modal-preview" title="Resume preview"></iframe>
+        <p class="resume-modal-question">Download this resume?</p>
+        <div class="resume-modal-actions">
+          <button id="resume-download-yes" class="btn btn-primary" type="button">Yes</button>
+          <button id="resume-download-no" class="btn btn-secondary" type="button">No</button>
+        </div>
+      </section>
+    </div>
+
+    <footer class="site-footer">
+      <img
+        class="puzzle-strip"
+        src="assets/puzzle-banner.svg"
+        alt="Colorful puzzle piece banner"
+      />
+      <div class="footer-inner">
+        <p>&copy; <span id="year"></span> Melissa Walter. All rights reserved.</p>
+        <p><a href="mailto:melissa.walter@example.com">melissa.walter@example.com</a></p>
+      </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+  </body>
+</html>
